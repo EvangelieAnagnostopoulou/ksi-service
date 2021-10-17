@@ -1,3 +1,4 @@
+import json
 import uvicorn
 
 from subprocess import Popen, PIPE
@@ -41,7 +42,18 @@ def sign(body: Dict[Any, Any], settings: Settings = Depends(get_settings)):
             }
         )
 
+    # write json to file
+    with open('data.json', 'w') as f:
+        json.dump(data, f)
+
     # run ksi
+    process = Popen([
+        "ksi", "sign",
+        "-i", "data.json", "-o", "-",
+        "-S", settings.aggr_url,
+        "--aggr-user", settings.aggr_user,
+        "--aggr-key", settings.aggr_password,
+    ])
     process = Popen(["ls", "-la", "."], stdout=PIPE)
     (output, err) = process.communicate()
     exit_code = process.wait()
