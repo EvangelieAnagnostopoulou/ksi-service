@@ -6,7 +6,23 @@ from functools import lru_cache
 from typing import Any, Dict
 from fastapi import FastAPI, Depends, HTTPException
 
-from config import Settings
+from dotenv import load_dotenv
+from pydantic import BaseSettings
+
+
+load_dotenv()
+
+
+class Settings(BaseSettings):
+    secret: str
+
+    aggr_url: str = "http://tryout.guardtime.net:8080/gt-signingservice"
+    aggr_user: str = "test-user@example.com"
+    aggr_password: str
+
+    class Config:
+        env_prefix = ""
+
 
 app = FastAPI()
 
