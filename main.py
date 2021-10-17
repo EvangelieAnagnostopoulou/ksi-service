@@ -1,3 +1,4 @@
+import os
 import json
 import uvicorn
 
@@ -79,4 +80,4 @@ def sign(body: Dict[Any, Any], settings: Settings = Depends(get_settings)):
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, port=5000, host='0.0.0.0')
+    uvicorn.run(app, port=int(os.environ.get("PORT", "5000")), host='0.0.0.0')
