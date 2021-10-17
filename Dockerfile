@@ -43,4 +43,4 @@ COPY . /code/
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-CMD ["uvicorn", "main:app"]
+CMD ["python", "main.py"]
