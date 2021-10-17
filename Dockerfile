@@ -40,5 +40,7 @@ COPY requirements.txt /code/
 RUN pip install -r requirements.txt
 COPY . /code/
 
-ARG LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
 CMD ["uvicorn", "main:app"]
