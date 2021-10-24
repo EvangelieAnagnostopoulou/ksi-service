@@ -1,5 +1,6 @@
 import os
 import json
+import base64
 import uvicorn
 
 from subprocess import Popen, PIPE
@@ -71,13 +72,26 @@ def sign(body: Dict[Any, Any], settings: Settings = Depends(get_settings)):
         "--aggr-user", settings.aggr_user,
         "--aggr-key", settings.aggr_password,
     ], stdout=PIPE)
-    (output, err) = process.communicate()
+    (raw_signature, err) = process.communicate()
     exit_code = process.wait()
+
+    if exit_code:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Signing error."
+            }
+        )
+
+    # encode
+    signature = base64.\
+        b64encode(raw_signature).\
+        decode("utf-8")
 
     # sign data
     return {
         "data": data,
-        "output": output,
+        "signature": signature,
     }
 
 
