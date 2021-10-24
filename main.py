@@ -70,13 +70,15 @@ def sign(body: Dict[Any, Any], settings: Settings = Depends(get_settings)):
         "-S", settings.aggr_url,
         "--aggr-user", settings.aggr_user,
         "--aggr-key", settings.aggr_password,
-    ])
-    process = Popen(["ls", "-la", "."], stdout=PIPE)
+    ], stdout=PIPE)
     (output, err) = process.communicate()
     exit_code = process.wait()
 
     # sign data
-    return data
+    return {
+        "data": data,
+        "output": output,
+    }
 
 
 if __name__ == '__main__':
