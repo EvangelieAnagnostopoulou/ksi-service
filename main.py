@@ -1,6 +1,8 @@
 import os
 import json
 import base64
+from collections import OrderedDict
+
 import uvicorn
 
 from subprocess import Popen, PIPE
@@ -24,6 +26,91 @@ class Settings(BaseSettings):
 
     class Config:
         env_prefix = ""
+
+
+class DataSignatureManager(object):
+
+    def __init__(self, settings):
+        self.settings = settings
+
+    @staticmethod
+    def _preprocess_data(data):
+        # remove `dateModified` property
+        if "dateModified" in data:
+            data.pop("dateModified")
+
+        # add property for updated attributes
+        # first set `updatedAttributes` to empty dict
+        # so that it's also included in call to `data.keys()`
+        # also include ksiSignature prop which is added after signature is generated
+        data["updatedAttributes"] = {}
+        data["updatedAttributes"].update({
+            "metadata": {},
+            "type": "Text",
+            "value": ", ".join(sorted(list(data.keys()) + ["ksiSignature"])),
+        })
+
+    def _sorted_dict_props(self, data):
+
+        if type(data) != dict:
+            return data
+
+        ordered_data = OrderedDict()
+        for prop, value in sorted(data.items(), key=lambda item: item[0]):
+            ordered_data[prop] = self._sorted_dict_props(data=value)
+
+        return ordered_data
+
+    def _get_signature(self, data):
+        # write data to file
+        with open('data.json', 'w') as f:
+            f.write(data)
+
+        # run ksi process
+        process = Popen([
+            "ksi", "sign",
+            "-i", "data.json", "-o", "-",
+            "-S", self.settings.aggr_url,
+            "--aggr-user", self.settings.aggr_user,
+            "--aggr-key", self.settings.aggr_password,
+        ], stdout=PIPE)
+
+        # get response & wait to finish
+        (raw_signature, err) = process.communicate()
+        exit_code = process.wait()
+
+        # raise exception for non-zero exit codes
+        if exit_code:
+            raise DataSignatureManager.SignatureError()
+
+        # decode & return signature
+        return base64. \
+            b64encode(raw_signature). \
+            decode("utf-8")
+
+    def _serialized_data(self, data):
+        # serialize remove whitespace,
+        # order fields alphabetically,
+        return json.dumps(
+            self._sorted_dict_props(data),
+            separators=(',', ':')
+        )
+
+    def get_signed_data(self, data):
+        # preprocess
+        self._preprocess_data(data=data)
+
+        # get signature
+        signature = self._get_signature(data=self._serialized_data(data=data))
+
+        # add signature
+        data["ksiSignature"] = signature
+
+        # serialize again and return
+        return self._serialized_data(data=data)
+
+    class SignatureError(ValueError):
+        pass
 
 
 app = FastAPI()
@@ -60,22 +147,11 @@ def sign(body: Dict[Any, Any], settings: Settings = Depends(get_settings)):
             }
         )
 
-    # write json to file
-    with open('data.json', 'w') as f:
-        json.dump(data, f)
-
-    # run ksi
-    process = Popen([
-        "ksi", "sign",
-        "-i", "data.json", "-o", "-",
-        "-S", settings.aggr_url,
-        "--aggr-user", settings.aggr_user,
-        "--aggr-key", settings.aggr_password,
-    ], stdout=PIPE)
-    (raw_signature, err) = process.communicate()
-    exit_code = process.wait()
-
-    if exit_code:
+    # sign data
+    try:
+        signed_data = DataSignatureManager(settings=settings).\
+            get_signed_data(data=data)
+    except DataSignatureManager.SignatureError:
         raise HTTPException(
             status_code=500,
             detail={
@@ -83,15 +159,9 @@ def sign(body: Dict[Any, Any], settings: Settings = Depends(get_settings)):
             }
         )
 
-    # encode
-    signature = base64.\
-        b64encode(raw_signature).\
-        decode("utf-8")
-
-    # sign data
+    # return signed data
     return {
-        "data": data,
-        "signature": signature,
+        "signed_data": signed_data,
     }
 
 
