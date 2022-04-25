@@ -107,7 +107,7 @@ class DataSignatureManager(object):
         data["ksiSignature"] = signature
 
         # serialize again and return
-        return self._serialized_data(data=data)
+        return json.loads(self._serialized_data(data=data))
 
     class SignatureError(ValueError):
         pass
