@@ -44,11 +44,7 @@ class DataSignatureManager(object):
         # so that it's also included in call to `data.keys()`
         # also include ksiSignature prop which is added after signature is generated
         data["updatedAttributes"] = {}
-        data["updatedAttributes"].update({
-            "metadata": {},
-            "type": "Text",
-            "value": ", ".join(sorted(list(data.keys()) + ["ksiSignature"])),
-        })
+        data["updatedAttributes"] = ",".join(sorted(list(data.keys()) + ["ksiSignature"]))
 
     def _sorted_dict_props(self, data):
 
